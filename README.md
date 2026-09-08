@@ -1,13 +1,13 @@
 # FinchApps production connection service
 
-Shared server for VisitQuill, DoseFolio, LabPrism, PulseTrellis, CareThread Atlas, AllergyFolio, VaxLedger, ConsentLoom, FHIR Trail and SourceWeave. Patient-authorized connectivity is powered by **FinchNode**.
+Shared server for VisitQuill, DoseFolio, LabPrism, PulseTrellis, CareThread Atlas, AllergyFolio, VaxLedger, ConsentLoom, FHIR Trail SourceWeave and WhenWillIDie. Patient-authorized connectivity is powered by **FinchNode**.
 
 ## Run
 Node 22 or newer; no third-party runtime dependencies. Run `npm ci`, `npm test`, then `npm start`. Render uses `PORT`; otherwise port 3000.
 
 Configure `FINCHNODE_API_KEY` (a production `ck_live_` key) and `FINCHNODE_WEBHOOK_SECRET` **only in the server's secret environment**. Never place these in frontend variables, Git, URLs, or logs. Missing or sandbox configuration fails closed. `GET /health` reports configuration presence, not credential validity.
 
-Register FinchNode app **FinchApps Personal Health Tools**, with a purpose explicitly naming all ten sites, read-only one-time transfers, a one-day requested sharing duration, and the matching privacy notice. Configure the lifecycle webhook as `https://finchapps-connect.onrender.com/webhooks/finchnode`. The eight category allowlist is narrowed per site and per visitor selection.
+Register FinchNode app **FinchApps Personal Health Tools**, with a purpose explicitly naming all eleven sites, read-only one-time transfers, a one-day requested sharing duration, and the matching privacy notice. Configure the lifecycle webhook as `https://finchapps-connect.onrender.com/webhooks/finchnode`. The eight category allowlist is narrowed per site and per visitor selection.
 
 ## Security and lifecycle
 
@@ -26,3 +26,5 @@ Use the provided Render Blueprint or create a **free Node web service** from thi
 Tests use injected mock HTTP responses to verify access boundaries and lifecycle behavior; no fixtures are shipped to users and no real medical records are needed for testing. Actual patient EHR sign-in and sharing must be completed by the patient.
 
 Production contract: https://finchnode.com/openapi.yaml. Supported source availability is determined by FinchNode and the healthcare organization; a configured live key alone does not prove a successful patient connection.
+
+WhenWillIDie is limited to the demographics category; its entertainment calculation uses only age derived from birth date. It must be named in the shared app purpose before enabling production. Hosted Connect returns to each site’s `/#/import` route.

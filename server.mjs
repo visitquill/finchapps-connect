@@ -2,7 +2,7 @@ import http from 'node:http';
 import {randomBytes,createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 const all=['demographics','medications','conditions','labs','vitals','allergies','immunizations','encounters'];
-export const scopes={visitquill:['demographics','conditions','medications','labs'],dosefolio:['demographics','medications','allergies'],labprism:['demographics','labs'],pulsetrellis:['demographics','vitals','encounters'],carethreadatlas:all,allergyfolio:['demographics','allergies','medications'],vaxledger:['demographics','immunizations'],consentloom:all,fhirtrail:all,sourceweave:all};
+export const scopes={visitquill:['demographics','conditions','medications','labs'],dosefolio:['demographics','medications','allergies'],labprism:['demographics','labs'],pulsetrellis:['demographics','vitals','encounters'],carethreadatlas:all,allergyfolio:['demographics','allergies','medications'],vaxledger:['demographics','immunizations'],consentloom:all,fhirtrail:all,sourceweave:all,whenwillidie:['demographics']};
 const hash=v=>createHash('sha256').update(v).digest('hex');
 export function verifySignature(raw,header,secret,now=Date.now()){
  if(!secret)return false;
@@ -51,7 +51,7 @@ export function createServer({key=process.env.FINCHNODE_API_KEY,webhookSecret=pr
     const app=await upstream('/app');if(app.environment!=='production'||app.status!=='live')throw fail(503,'A live production application is required.');
     const token=randomBytes(32).toString('hex'),externalId=randomBytes(24).toString('hex');
     const categories=[...new Set(body.categories)];
-    const connected=await upstream('/connect/sessions',{method:'POST',headers:{'Idempotency-Key':externalId},body:JSON.stringify({externalId,categories,returnUrl:origin+'/',syncMode:'one-time',durationDays:1})});
+    const connected=await upstream('/connect/sessions',{method:'POST',headers:{'Idempotency-Key':externalId},body:JSON.stringify({externalId,categories,returnUrl:origin+'/#/import',syncMode:'one-time',durationDays:1})});
     if(connected.environment!=='production'||!/^cs_[a-f0-9]{20}$/.test(connected.id))throw fail(502,'Unexpected connection environment.');
     const url=new URL(connected.url);if(url.origin!=='https://finchnode.com'||url.pathname!==`/connect/${connected.id}`)throw fail(502,'Invalid Hosted Connect destination.');
     sessions.set(hash(token),{slug,externalId,categories,id:connected.id,expires:now()+ttl,subject:null});
