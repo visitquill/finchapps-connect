@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: finchapps-connect
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: FINCHNODE_API_KEY
+        sync: false
+      - key: FINCHNODE_WEBHOOK_SECRET
+        sync: false
