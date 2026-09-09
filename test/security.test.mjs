@@ -10,3 +10,17 @@ test('signed revocation invalidates access; forged and stale signatures are reje
 test('session expires even if its token remains in the browser',async t=>{let time=Date.now();const {call}=await fixture(t,{now:()=>time});const {token}=await connect(call);time+=31*60000;assert.equal((await call('/records',{headers:{Authorization:'Bearer '+token}})).status,401)});
 test('inactive consent and malformed data are never returned',async t=>{const {call,getSession}=await fixture(t);const {token}=await connect(call);getSession().externalId='wrong';assert.equal((await call('/records',{headers:{Authorization:'Bearer '+token}})).status,403)});
 test('WhenWillIDie is demographic-only and Connect returns to the import route',async t=>{const {call,calls}=await fixture(t);const headers={Origin:'https://whenwillidie.onrender.com'};assert.equal((await call('/session',{method:'POST',headers,body:'{"categories":["labs"]}'})).status,400);const r=await call('/session',{method:'POST',headers,body:'{"categories":["demographics"]}'});assert.equal(r.status,201);const body=JSON.parse(calls.at(-1).options.body);assert.deepEqual(body.categories,['demographics']);assert.equal(body.returnUrl,'https://whenwillidie.onrender.com/#/import')});
+test('registered domains receive CORS while unregistered origins remain denied',async t=>{
+ const {call}=await fixture(t);
+ const domains=['visitquill.com','dosefolio.com','labprismapp.com','pulsetrellis.com','carethreadatlas.com','allergyfolio.com','vaxledgerapp.com','consentloom.com','fhirtrail.com','sourceweaveapp.com','whenwillidieclub.com'];
+ for(const domain of domains){const origin='https://'+domain;const r=await call('/session',{method:'OPTIONS',headers:{Origin:origin}});assert.equal(r.status,204,domain);assert.equal(r.headers.get('access-control-allow-origin'),origin);}
+ for(const origin of ['http://visitquill.com','https://visitquill.com.evil.example','https://labprism.com','https://visitquill.com:8443']){const r=await call('/session',{method:'OPTIONS',headers:{Origin:origin}});assert.equal(r.status,403,origin);assert.equal(r.headers.get('access-control-allow-origin'),null);}
+});
+test('custom-domain sessions preserve return URL, scopes and exact origin isolation',async t=>{
+ const {call,calls}=await fixture(t);const custom='https://visitquill.com';
+ const r=await call('/session',{method:'POST',headers:{Origin:custom},body:'{"categories":["labs"]}'});assert.equal(r.status,201);const {token}=await r.json();
+ assert.equal(JSON.parse(calls.at(-1).options.body).returnUrl,custom+'/#/import');
+ const headers={Authorization:'Bearer '+token,Origin:custom};assert.equal((await call('/records',{headers})).status,200);
+ assert.equal((await call('/records',{headers:{...headers,Origin:origin}})).status,401);
+ assert.equal((await call('/session',{method:'POST',headers:{Origin:'https://whenwillidieclub.com'},body:'{"categories":["labs"]}'})).status,400);
+});

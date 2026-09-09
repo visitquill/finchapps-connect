@@ -3,6 +3,8 @@ import {randomBytes,createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 const all=['demographics','medications','conditions','labs','vitals','allergies','immunizations','encounters'];
 export const scopes={visitquill:['demographics','conditions','medications','labs'],dosefolio:['demographics','medications','allergies'],labprism:['demographics','labs'],pulsetrellis:['demographics','vitals','encounters'],carethreadatlas:all,allergyfolio:['demographics','allergies','medications'],vaxledger:['demographics','immunizations'],consentloom:all,fhirtrail:all,sourceweave:all,whenwillidie:['demographics']};
+const domains={visitquill:'visitquill.com',dosefolio:'dosefolio.com',labprism:'labprismapp.com',pulsetrellis:'pulsetrellis.com',carethreadatlas:'carethreadatlas.com',allergyfolio:'allergyfolio.com',vaxledger:'vaxledgerapp.com',consentloom:'consentloom.com',fhirtrail:'fhirtrail.com',sourceweave:'sourceweaveapp.com',whenwillidie:'whenwillidieclub.com'};
+const originSlugs=new Map(Object.entries(domains).flatMap(([slug,domain])=>[[`https://${domain}`,slug],[`https://${slug}.onrender.com`,slug]]));
 const hash=v=>createHash('sha256').update(v).digest('hex');
 export function verifySignature(raw,header,secret,now=Date.now()){
  if(!secret)return false;
@@ -39,7 +41,7 @@ export function createServer({key=process.env.FINCHNODE_API_KEY,webhookSecret=pr
     }return send(200,{received:true});
    }
    const origin=req.headers.origin;
-   const slug=Object.keys(scopes).find(x=>origin===`https://${x}.onrender.com`);
+   const slug=originSlugs.get(origin);
    if(!slug)throw fail(403,'Origin not allowed.');
    res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');
    if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Methods','GET, POST, DELETE, OPTIONS');res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');return send(204,{});}
@@ -54,12 +56,12 @@ export function createServer({key=process.env.FINCHNODE_API_KEY,webhookSecret=pr
     const connected=await upstream('/connect/sessions',{method:'POST',headers:{'Idempotency-Key':externalId},body:JSON.stringify({externalId,categories,returnUrl:origin+'/#/import',syncMode:'one-time',durationDays:1})});
     if(connected.environment!=='production'||!/^cs_[a-f0-9]{20}$/.test(connected.id))throw fail(502,'Unexpected connection environment.');
     const url=new URL(connected.url);if(url.origin!=='https://finchnode.com'||url.pathname!==`/connect/${connected.id}`)throw fail(502,'Invalid Hosted Connect destination.');
-    sessions.set(hash(token),{slug,externalId,categories,id:connected.id,expires:now()+ttl,subject:null});
+    sessions.set(hash(token),{slug,origin,externalId,categories,id:connected.id,expires:now()+ttl,subject:null});
     return send(201,{token,url:connected.url,expiresAt:now()+ttl});
    }
    const token=String(req.headers.authorization||'').replace(/^Bearer /,'');
    const sessionKey=hash(token),s=sessions.get(sessionKey);
-   if(!s||s.slug!==slug||s.expires<now()){if(s&&s.expires<now())sessions.delete(sessionKey);throw fail(401,'Your private session has ended. Connect again to continue.');}
+   if(!s||s.slug!==slug||s.origin!==origin||s.expires<now()){if(s&&s.expires<now())sessions.delete(sessionKey);throw fail(401,'Your private session has ended. Connect again to continue.');}
    if(limited(sessionKey,12))throw fail(429,'Please wait before refreshing again.');
    if(req.method==='DELETE'&&path==='/session'){
     sessions.delete(sessionKey);
